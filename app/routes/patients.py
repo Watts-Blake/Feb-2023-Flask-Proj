@@ -1,5 +1,5 @@
 import sqlite3
-from flask import (Flask, render_template, redirect, Blueprint)
+from flask import (Flask, render_template, redirect, Blueprint, request)
 from ..forms.create_patient import PatientForm
 DB_FILE = '../dev.db'
 
@@ -8,7 +8,10 @@ patient_routes = Blueprint('patients', __name__)
 
 @patient_routes.route('/', methods=['GET'])
 def get_all_patients():
-    print('hitting /get patients line 41')
+    patiend_id = request.args.get('id')
+    if patiend_id is not None:
+        return redirect(f'/patients/{patiend_id}')
+
     patients = None
     with sqlite3.connect(DB_FILE) as conn:
         curs = conn.cursor()
@@ -31,9 +34,9 @@ def get_one_patient(id):
         result = curs.fetchone()
         patient = result
     if patient is not None:
-        return (list(patient), 200)
+        return render_template("one_patient.html",patient=patient), 200
     else:
-        return ('Patient Not Found', 404)
+        return render_template("one_patient.html", patient='Patient Not Found'),404
 
 @patient_routes.route('/create', methods=['GET'])
 def get_create_patient_form():

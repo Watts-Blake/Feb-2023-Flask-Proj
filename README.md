@@ -8,12 +8,13 @@ In this lecture we will create a project with flask as our api framework, along 
 
 - Create a flask server
 - Connect that server to our database
-- Create Routes on our server to render
+- Create Routes and templates on our server to render
   - GET - All Patients
   - GET - One Patient by id
   - GET - Form for creating a patient
   - POST - A new patient
-- move all patients routes to a blue print and connect it
+- move all patients routes to a blue print and connect it to our app
+- Create a nav bar and extend to it on all of our templates
 
 <br/>
 
@@ -286,6 +287,41 @@ def get_one_patient(id):
         return ('Patient Not Found', 404)
 ```
 
+- create a jinja template for one patient in templates dir and render it under previously created route
+
+```
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{{page}}</title>
+  </head>
+
+  <body>
+    <h1>{{sitename}}</h1>
+    <h2>{{page}}</h2>
+    <li>{{patient}}</li>
+    <p></p>
+  </body>
+</html>
+```
+
+- modify route
+
+```
+@patient_routes.route('/<int:id>', methods=['GET'])
+def get_one_patient(id):
+    patient = None
+    with sqlite3.connect(DB_FILE) as conn:
+        curs = conn.cursor()
+        curs.execute(f"SELECT * FROM patients WHERE id={id};")
+        result = curs.fetchone()
+        patient = result
+    if patient is not None:
+        return render_template("one_patient.html",patient=patient), 200
+    else:
+        return render_template("one_patient.html", patient
+```
+
 <br/>
 
 ### 5). Create a Form to Create a New Patient
@@ -511,4 +547,114 @@ def post_patient():
 ```
 from .routes.patients import patient_routes
 app.register_blueprint(patient_routes, url_prefix='/patients')
+```
+
+<br/>
+
+## 7). Create a base.html nav bar template and include it on all of our templates
+
+```
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='index.css')}}"
+    />
+    <title>Patient Tracker</title>
+  </head>
+  <body>
+    <h1>Patient Tracker</h1>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/patients">All Patients</a>
+      <a href="/patients/create">New Patient</a>
+    </nav>
+    {% block main %} {% endblock %}
+  </body>
+</html>
+```
+
+- extend this base.html to every template you would like using this syntax
+
+```
+{% extends "base.html" %}
+{% block main %}
+things to wrap
+{% endblock %}
+```
+
+## 8). **Bonus** Create a search bar (patiend id) by using query params and modifying our get all patients route.
+
+- create jinja template for search form
+
+```
+<body>
+  <form action="/patients" method="get">
+    <label for="search">Search by Patient ID:</label>
+    <input type="text" id="search" name="id" />
+    <input type="submit" value="Search" />
+  </form>
+</body>
+```
+
+- include this form on our base.html
+
+```
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='index.css')}}"
+    />
+    <title>Patient Tracker</title>
+  </head>
+  <body>
+    <h1>Patient Tracker</h1>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/patients">All Patients</a>
+      <a href="/patients/create">New Patient</a>
+
+      <!-- START -->
+      {% include 'search.html' %}
+      <!-- END -->
+
+    </nav>
+    {% block main %} {% endblock %}
+  </body>
+</html>
+```
+
+- modify all patients route to check for query params, and render one_patient.html if present
+
+```
+@patient_routes.route('/', methods=['GET'])
+def get_all_patients():
+
+# START
+    patiend_id = request.args.get('id')
+    if patiend_id is not None:
+        return redirect(f'/patients/{patiend_id}')
+# END
+
+    patients = None
+    with sqlite3.connect(DB_FILE) as conn:
+        curs = conn.cursor()
+        curs.execute("SELECT * FROM patients;")
+        result = curs.fetchall()
+        if (len(result) > 0):
+            patients = result
+    if patients is not None:
+            # print('line 47', patients)
+            return render_template('all_patients.html', page='All Patients', sitename='Patient Tracker', patients=patients)
+    else:
+        return 'No Patients exist!'
 ```
